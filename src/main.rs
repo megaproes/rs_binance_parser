@@ -34,9 +34,9 @@ struct Position<'a> {
 
 fn main() {
     let date_str = "2023-07-25";
-    let api_key = String::from("1Su30ANOkWEBHgJbJ4SYWOFMg2IFBXVbbyA0mojqPfHGoL65egDc64Fg9oIQU73j");
+    let api_key = String::from("");
     let secret_key =
-        String::from("ulMm5wpCmgvBEAlVRNvQbbMvIbcOIv4MYwag8Ba0ZhTSJJpFxczrfhYqLlDn04Md");
+        String::from("");
     // let market: Market = Binance::new(None, None);
 
     let fapi_client: account::FuturesAccount =
