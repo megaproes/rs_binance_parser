@@ -1,0 +1,17 @@
+fn print_klines(date_str: &str, market: Market) {
+    let start_timestamp = get_timestamp_mil(date_str);
+
+    match market.get_klines("BTCUSDT", "5m", Some(1000), start_timestamp, None) {
+        Ok(klines) => match klines {
+            binance::model::KlineSummaries::AllKlineSummaries(klines) => {
+                for kline in klines {
+                    println!(
+                        "Open: {}, High: {}, Low: {}, Close: {}",
+                        kline.open, kline.high, kline.low, kline.close
+                    )
+                }
+            }
+        },
+        Err(e) => println!("Error: {}", e),
+    }
+}
