@@ -9,6 +9,7 @@ extern crate simple_excel_writer;
 use simple_excel_writer as excel;
 
 use excel::*;
+use std::io;
 
 #[derive(Default)]
 struct Trade {
@@ -39,10 +40,23 @@ struct Position {
 }
 
 fn main() {
-    let date_str = "2023-08-12";
-    let api_key = String::from("");
+    println!("Enter time period (today | yesterday | this week | YYYY-MM--DD): ");
+    // "2023-08-12"
+    let mut date_str = String::new();
+     io::stdin()
+        .read_line(&mut date_str)
+        .expect("failed to read from stdin");
+    date_str = date_str.trim().to_string();
+
+    
+
+    
+    
+    
+    
+    let api_key = String::from("1Su30ANOkWEBHgJbJ4SYWOFMg2IFBXVbbyA0mojqPfHGoL65egDc64Fg9oIQU73j");
     let secret_key =
-        String::from("");
+        String::from("ulMm5wpCmgvBEAlVRNvQbbMvIbcOIv4MYwag8Ba0ZhTSJJpFxczrfhYqLlDn04Md");
     // let market: Market = Binance::new(None, None);
 
     let fapi_client: account::FuturesAccount =
@@ -58,8 +72,8 @@ fn main() {
         let client_trade: Vec<Trade> = get_symbol_trades(
             &fapi_client,
             ticker,
-            get_timestamp_mil(date_str.clone()).unwrap(),
-            get_timestamp_mil("2023-08-13").unwrap(),
+            get_timestamp_mil(&date_str.clone()).unwrap(),
+            get_timestamp_mil("2023-08-06").unwrap(),
             1000,
         );
         all_trades.extend(client_trade);
@@ -100,6 +114,7 @@ fn get_timestamp_mil(date_str: &str) -> Option<u64> {
     let datetime = Utc
         .from_local_datetime(&date.and_hms_opt(0, 0, 0).unwrap())
         .unwrap();
+    println("{:?}", datetime);
     let timestamp_millis = datetime.timestamp_millis();
     match timestamp_millis {
         0 => None,
@@ -200,7 +215,7 @@ impl Position {
                     pos.volume_dollar += trades[j].quote_qty;
                     pos.commission += trades[j].commission;
                 } 
-                else 
+                else if pos.side != trades[j].side 
                 {
                     pos.average_exit_price += trades[j].price * trades[j].qty;
                     pos.exit_volume_quantity += trades[j].qty;
@@ -213,7 +228,7 @@ impl Position {
                         pos.average_exit_price /= pos.exit_volume_quantity;
                         pos.realized_pnl_gross = pos.realized_pnl_net - pos.commission;
                         pos.time_finished = trades[j].time;
-                        j += 1;
+                       // j += 1;
                         i = j;
                        
                         break;
