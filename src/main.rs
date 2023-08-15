@@ -1,7 +1,7 @@
 use binance::api::*;
 use binance::errors::Error;
 use binance::futures::*;
-use chrono::{Datelike, Duration, FixedOffset, NaiveDate, TimeZone, Utc};
+use chrono::{DateTime, Datelike, Duration, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use serde_json::Value;
 use std::collections::BTreeSet;
 
@@ -70,12 +70,11 @@ fn main() {
             all_trades.extend(client_trade);
         }
     }
-
-    let positions = Position::make_positions(&mut all_trades);
+    let mut positions = Position::make_positions(&mut all_trades);
     for pos in &positions {
         println!("{:?}", pos);
     }
-    write_to_excel(positions);
+    write_to_excel(&mut positions);
 }
 fn get_timestamp_mil2(period: &str) -> Vec<(u64, u64)> {
     let ukraine_timezone = FixedOffset::east_opt(3 * 3600).unwrap();
@@ -115,13 +114,12 @@ fn get_timestamp_mil2(period: &str) -> Vec<(u64, u64)> {
                         current_time.date_naive() - Duration::days((i - 1).into());
                     date_minus_i_minus_one_days.and_hms_opt(23, 59, 59).unwrap()
                 };
-
+                println!("start_of_day: {:?}  end_of_day: {:?}", start_of_day.clone(), end_of_day.clone());
                 periods.push((
                     start_of_day.unwrap().timestamp_millis() as u64,
                     end_of_day.timestamp_millis() as u64,
                 ));
             }
-            periods.reverse();
         }
         _ => {
             // If in format YYYY-MM--DD . . .
@@ -143,8 +141,14 @@ fn get_timestamp_mil2(period: &str) -> Vec<(u64, u64)> {
     periods
 }
 
-fn write_to_excel(positions: Vec<Position>) {
-    let mut wb = Workbook::create("output_positions.xlsx");
+fn write_to_excel(positions: &mut  Vec<Position>) {
+        let ukraine_timezone = FixedOffset::east_opt(3 * 3600).unwrap();
+
+        let current_time = Utc::now().with_timezone(&ukraine_timezone);
+        
+    positions.sort_by(|a, b| b.time_start.cmp(&a.time_start));
+
+let mut wb = Workbook::create(format!("output_positions_{}.xlsx", current_time.format("%Y-%m-%d_%H-%M-%S")).as_str());
     let mut sheet = wb.create_sheet("Positions");
 
     wb.write_sheet(&mut sheet, |sheet_writer| {
@@ -165,10 +169,19 @@ fn write_to_excel(positions: Vec<Position>) {
         ])?;
 
         for pos in positions {
+            let time_start_dt =
+                NaiveDateTime::from_timestamp_millis(pos.time_start as i64).unwrap();
+            let time_finished_dt =
+                NaiveDateTime::from_timestamp_millis(pos.time_finished as i64).unwrap();
+
+            // Extract the date and time in the desired format
+            let date = time_start_dt.date().format("%Y-%m-%d").to_string();
+            let time_entry = time_start_dt.time().format("%H:%M:%S").to_string();
+            let time_exit = time_finished_dt.time().format("%H:%M:%S").to_string();
             sw.append_row(row![
-                pos.time_start as f64,
-                pos.time_start as f64,
-                pos.time_finished as f64,
+                date,
+                time_entry,
+                time_exit,
                 pos.symbol.to_string(),
                 pos.side.to_string(),
                 pos.average_entry_price as f64,
