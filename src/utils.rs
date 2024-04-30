@@ -1,4 +1,12 @@
-fn get_timestamp_mil2(period: &str) -> Vec<(u64, u64)> {
+use crate::trade::Trade;
+use chrono::{DateTime, Datelike, Duration, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
+use binance::api::*;
+use binance::errors::Error;
+use binance::futures::*;
+use std::collections::{BTreeSet, HashSet};
+use serde_json::Value;
+
+pub fn get_timestamp_mil2(period: &str) -> Vec<(u64, u64)> {
     let ukraine_timezone = FixedOffset::east_opt(3 * 3600).unwrap();
     let current_time = Utc::now().with_timezone(&ukraine_timezone);
     let mut periods: Vec<(u64, u64)> = Vec::new();
@@ -67,7 +75,7 @@ fn get_timestamp_mil2(period: &str) -> Vec<(u64, u64)> {
     periods
 }
 
-fn get_timestamp_mil(date_str: &str) -> Option<u64> {
+pub fn get_timestamp_mil(date_str: &str) -> Option<u64> {
     let date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d").expect("Failed to parse data . . .");
     let datetime = Utc
         .from_local_datetime(&date.and_hms_opt(0, 0, 0).unwrap())
@@ -80,7 +88,7 @@ fn get_timestamp_mil(date_str: &str) -> Option<u64> {
     }
 }
 
-fn get_unique_symbols(
+pub fn get_unique_symbols(
     fapi_client: &account::FuturesAccount,
     start_t: u64,
     end_t: u64,
@@ -115,7 +123,7 @@ fn get_unique_symbols(
     return symbols;
 }
 
-fn get_symbol_trades(
+pub fn get_symbol_trades(
     fapi_client: &account::FuturesAccount,
     symbol: String,
     start_time: u64,

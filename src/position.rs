@@ -1,21 +1,22 @@
+use crate::trade::Trade;
 #[derive(Default, Debug)]
-struct Position {
-    symbol: String,
-    side: String,
-    average_entry_price: f64,
-    average_exit_price: f64,
-    realized_pnl_net: f64,
-    realized_pnl_gross: f64,
-    commission: f64,
-    volume_dollar: f64,
-    volume_quantity: f64,
-    exit_volume_quantity: f64,
-    time_start: u64,
-    time_finished: u64,
+pub struct Position {
+	pub  symbol: String,
+	pub   side: String,
+	pub  average_entry_price: f64,
+	pub  average_exit_price: f64,
+	pub  realized_pnl_net: f64,
+	pub  realized_pnl_gross: f64,
+	pub commission: f64,
+	pub volume_dollar: f64,
+	pub  volume_quantity: f64,
+	pub  exit_volume_quantity: f64,
+	pub  time_start: u64,
+	pub  time_finished: u64,
 }
 
 impl Position {
-    fn make_positions(trades: &mut Vec<Trade>) -> Vec<Position> {
+	pub  fn make_positions(trades: &mut Vec<Trade>) -> Vec<Position> {
         let mut positions = Vec::new();
         let mut i = 0;
 
