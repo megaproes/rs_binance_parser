@@ -10,7 +10,7 @@ pub fn write_to_excel(positions: &mut Vec<Position>) {
 
     let current_time = Utc::now().with_timezone(&ukraine_timezone);
 
-    positions.sort_by(|a, b| b.time_start.cmp(&a.time_start));
+    positions.sort_by(|a, b| a.time_start.cmp(&b.time_start));
 
     let mut wb = Workbook::create(
         format!(
