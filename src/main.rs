@@ -3,7 +3,7 @@ use binance::errors::Error;
 use binance::futures::*;
 use chrono::{DateTime, Datelike, Duration, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use serde_json::Value;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 extern crate simple_excel_writer;
 use simple_excel_writer as excel;
@@ -11,7 +11,7 @@ use simple_excel_writer as excel;
 use excel::*;
 use std::io;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct Trade {
     symbol: String,
     side: String,
@@ -48,9 +48,9 @@ fn main() {
 
     let timestamp_pairs = get_timestamp_mil2(&date_str.trim());
 
-    let api_key = String::from("1Su30ANOkWEBHgJbJ4SYWOFMg2IFBXVbbyA0mojqPfHGoL65egDc64Fg9oIQU73j");
+    let api_key = String::from("...");
     let secret_key =
-        String::from("ulMm5wpCmgvBEAlVRNvQbbMvIbcOIv4MYwag8Ba0ZhTSJJpFxczrfhYqLlDn04Md");
+        String::from("...");
 
     let fapi_client: account::FuturesAccount =
         binance::futures::account::FuturesAccount::new(Some(api_key), Some(secret_key));
@@ -74,7 +74,18 @@ fn main() {
     for pos in &positions {
         println!("{:?}", pos);
     }
-    write_to_excel(&mut positions);
+    // Remove duplicates
+    let mut unique_positions = HashSet::new();
+    let mut dedup_positions = Vec::new();
+
+    for pos in positions {
+        let key = (pos.symbol.clone(), pos.side.clone(), pos.time_start);
+        if !unique_positions.contains(&key) {
+            unique_positions.insert(key);
+            dedup_positions.push(pos);
+        }
+    }
+    write_to_excel(&mut dedup_positions);
 }
 fn get_timestamp_mil2(period: &str) -> Vec<(u64, u64)> {
     let ukraine_timezone = FixedOffset::east_opt(3 * 3600).unwrap();
@@ -114,7 +125,11 @@ fn get_timestamp_mil2(period: &str) -> Vec<(u64, u64)> {
                         current_time.date_naive() - Duration::days((i - 1).into());
                     date_minus_i_minus_one_days.and_hms_opt(23, 59, 59).unwrap()
                 };
-                println!("start_of_day: {:?}  end_of_day: {:?}", start_of_day.clone(), end_of_day.clone());
+                println!(
+                    "start_of_day: {:?}  end_of_day: {:?}",
+                    start_of_day.clone(),
+                    end_of_day.clone()
+                );
                 periods.push((
                     start_of_day.unwrap().timestamp_millis() as u64,
                     end_of_day.timestamp_millis() as u64,
@@ -141,14 +156,20 @@ fn get_timestamp_mil2(period: &str) -> Vec<(u64, u64)> {
     periods
 }
 
-fn write_to_excel(positions: &mut  Vec<Position>) {
-        let ukraine_timezone = FixedOffset::east_opt(3 * 3600).unwrap();
+fn write_to_excel(positions: &mut Vec<Position>) {
+    let ukraine_timezone = FixedOffset::east_opt(3 * 3600).unwrap();
 
-        let current_time = Utc::now().with_timezone(&ukraine_timezone);
-        
+    let current_time = Utc::now().with_timezone(&ukraine_timezone);
+
     positions.sort_by(|a, b| b.time_start.cmp(&a.time_start));
 
-let mut wb = Workbook::create(format!("output_positions_{}.xlsx", current_time.format("%Y-%m-%d_%H-%M-%S")).as_str());
+    let mut wb = Workbook::create(
+        format!(
+            "output_positions_{}.xlsx",
+            current_time.format("%Y-%m-%d_%H-%M-%S")
+        )
+        .as_str(),
+    );
     let mut sheet = wb.create_sheet("Positions");
 
     wb.write_sheet(&mut sheet, |sheet_writer| {
@@ -286,51 +307,50 @@ fn get_symbol_trades(
 impl Position {
     fn make_positions(trades: &mut Vec<Trade>) -> Vec<Position> {
         let mut positions = Vec::new();
-
         let mut i = 0;
+
         while i < trades.len() {
             let mut pos = Position::default();
-
             pos.symbol = trades[i].symbol.clone();
             pos.side = trades[i].side.clone();
-
             pos.time_start = trades[i].time;
-            pos.commission += trades[i].commission;
 
-            pos.average_entry_price += trades[i].price * trades[i].qty;
-            pos.volume_quantity += trades[i].qty;
-            pos.volume_dollar += trades[i].quote_qty;
-
-            let mut j = i + 1;
-            while j < trades.len() {
-                if pos.side == trades[j].side {
-                    pos.average_entry_price += trades[j].price * trades[j].qty;
-                    pos.volume_quantity += trades[j].qty;
-                    pos.volume_dollar += trades[j].quote_qty;
-                    pos.commission += trades[j].commission;
-                } else if pos.side != trades[j].side {
-                    pos.average_exit_price += trades[j].price * trades[j].qty;
-                    pos.exit_volume_quantity += trades[j].qty;
-
-                    pos.realized_pnl_net += trades[j].realized_pnl;
-                    pos.commission += trades[j].commission;
-
-                    if (pos.volume_quantity - pos.exit_volume_quantity).abs() < 0.000001 {
-                        pos.average_entry_price /= pos.volume_quantity;
-                        pos.average_exit_price /= pos.exit_volume_quantity;
-                        pos.realized_pnl_gross = pos.realized_pnl_net - pos.commission;
-                        pos.time_finished = trades[j].time;
-                        // j += 1;
-                        i = j;
-
-                        break;
-                    }
-                }
+            let mut j = i;
+            while j < trades.len() && pos.side == trades[j].side {
+                pos.average_entry_price += trades[j].price * trades[j].qty;
+                pos.volume_quantity += trades[j].qty;
+                pos.volume_dollar += trades[j].quote_qty;
+                pos.commission += trades[j].commission;
                 j += 1;
             }
 
+            let mut exit_volume_quantity = 0.0;
+            let mut realized_pnl_net = 0.0;
+            let mut average_exit_price = 0.0;
+            let mut exit_commission = 0.0;
+
+            while j < trades.len() && pos.side != trades[j].side {
+                average_exit_price += trades[j].price * trades[j].qty;
+                exit_volume_quantity += trades[j].qty;
+                realized_pnl_net += trades[j].realized_pnl;
+                exit_commission += trades[j].commission;
+                j += 1;
+            }
+
+            if (pos.volume_quantity - exit_volume_quantity).abs() < 0.000001 {
+                pos.average_entry_price /= pos.volume_quantity;
+                pos.average_exit_price = average_exit_price / exit_volume_quantity;
+                pos.realized_pnl_net = realized_pnl_net;
+                pos.realized_pnl_gross = realized_pnl_net - pos.commission - exit_commission;
+                pos.exit_volume_quantity = exit_volume_quantity;
+                pos.time_finished = trades[j - 1].time;
+                i = j;
+            } else {
+                i += 1;
+                continue;
+            }
+
             positions.push(pos);
-            i += 1;
         }
 
         positions
