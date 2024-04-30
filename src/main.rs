@@ -1,22 +1,31 @@
 mod binance_helper;
+mod config_api;
 mod excel_helper;
 mod position;
 mod trade;
 mod utils;
-mod config_api;
 
 use crate::binance_helper::create_binance_client;
+use crate::config_api::Config;
 use crate::excel_helper::write_to_excel;
 use crate::position::Position;
 use crate::trade::Trade;
 use crate::utils::*;
-use crate::config_api::Config;
 
 use std::collections::{BTreeSet, HashSet};
 
 use std::io;
 
 fn main() {
+    let config = match Config::new() {
+        Ok(value) => {
+            println!("Keys successfully read");
+            value
+        }
+        Err(err) => {
+            panic!("The error occured while reading keys: {err}");
+        }
+    };
     println!("Enter time period (today | yesterday | this week | YYYY-MM--DD): ");
     let mut date_str = String::new();
     io::stdin()
@@ -24,12 +33,8 @@ fn main() {
         .expect("failed to read from stdin");
 
     let timestamp_pairs = get_timestamp_mil2(&date_str.trim());
-    
-    match Config::new(){
-        Ok(_) => println!("Keys successfully read"),
-        Err(err) => println!("The error occured while reading keys: {err}"),
-    }
-    let config = Config::new().expect("Failed to read configuration file");
+
+    // let config = Config::new().expect("Failed to read configuration file");
 
     let fapi_client = create_binance_client(&config);
 
