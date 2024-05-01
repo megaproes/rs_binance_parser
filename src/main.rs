@@ -34,8 +34,6 @@ fn main() {
 
     let timestamp_pairs = get_timestamp_mil2(&date_str.trim());
 
-    // let config = Config::new().expect("Failed to read configuration file");
-
     let fapi_client = create_binance_client(&config);
 
     let mut all_trades: Vec<Trade> = Vec::<Trade>::new();
@@ -53,7 +51,7 @@ fn main() {
             all_trades.extend(client_trade);
         }
     }
-    let mut positions = Position::make_positions(&mut all_trades);
+    let  positions = Position::make_positions(&mut all_trades);
     for pos in &positions {
         println!("{:?}", pos);
     }
