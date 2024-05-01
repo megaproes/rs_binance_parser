@@ -1,3 +1,4 @@
 target/
 *.xlsx
 Cargo.lock
+src/config.json
